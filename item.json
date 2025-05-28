@@ -1,0 +1,6 @@
+{
+  "id": { "N": "12345" },
+  "sender": { "S": "Alice" },
+  "receiver": { "S": "Bob" },
+  "status": { "S": "pending" }
+}

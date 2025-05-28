@@ -2,50 +2,39 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"net/http"
-	"strconv"
-	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/gin-gonic/gin"
+	"golang-coupang-backend.com/m/handler"
+	"golang-coupang-backend.com/m/repository"
+	"golang-coupang-backend.com/m/service"
+
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
 const (
-	port           = 8080
-	testBucketName = "sadlasfdasdfsadf"
+	port = ":8080"
 )
 
-func greet(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello World! %s", time.Now())
-}
-
 func main() {
+	context := context.TODO()
 	// Load the Shared AWS Configuration (~/.aws/config)
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := config.LoadDefaultConfig(context)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Print(cfg)
 
-	// Create an Amazon S3 service client
-	client := s3.NewFromConfig(cfg)
+	// Create DynamoDB client
+	dynamoClient := dynamodb.NewFromConfig(cfg)
 
-	// Get the first page of results for ListObjectsV2 for a bucket
-	output, err := client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
-		Bucket: aws.String(testBucketName),
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	// 의존성 생성 및 연결
+	repo := repository.NewDynamoParcelRepository(dynamoClient)
+	parcelService := service.NewParcelService(repo)
 
-	log.Println("first page results")
-	for _, object := range output.Contents {
-		log.Printf("key=%s size=%d", aws.ToString(object.Key), *object.Size)
-	}
-
-	fmt.Println("")
-	http.HandleFunc("/", greet)
-	http.ListenAndServe(strconv.Itoa(port), nil)
+	r := gin.Default()
+	handler := handler.NewParcelHandler(parcelService)
+	handler.RegisterParcelRoutes(r)
+	r.Run(port)
 }
